@@ -19,7 +19,7 @@ WebToNovel is a tool designed to make it easy for users to download chapters fro
 
 ### 1\. Clone the repository:
    ```bash
-   git clone https://github.com/Solaris595/WebToNovel.git
+   git clone https://github.com/Solaris5959/WebToNovel.git
    cd WebToNovel
    ```
 
