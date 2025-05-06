@@ -26,10 +26,6 @@ async def extract_chapter_title(page: Page) -> str | None:
             if TITLE_REGEX.search(text):
                 candidates.append(text)
 
-    print(await page.query_selector_all('p'))
-    print(page)
-
-    print(candidates)
     if candidates:
         # Return the first matching high-confidence result
         return candidates[0]

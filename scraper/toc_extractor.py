@@ -83,18 +83,48 @@ async def extract_toc_info(toc_url: str) -> dict:
 
             # === Attempt to extract novel title ===
             # Priority 1: Header elements
-            for selector in ["h1", "h2", ".novel-title", ".entry-title", "title"]:
+            for selector in [".title", "h1", "h2", "h3", ".novel-title", ".entry-title"]:
                 el = page.locator(selector)
                 if await el.count() > 0:
                     text = await el.first.text_content()
+                    print(text)
                     if text and len(text.strip()) > 5:
                         novel_title = text.strip().split(" | ")[0].split(" - ")[0]
                         break
 
             print(f"[INFO] Novel title detected: '{novel_title}'")
 
+            # === Attempt to get Novel Cover Image ===
+                        # === Attempt to extract cover image ===
+            image_selectors = [
+                ".novel-cover img", ".cover img", ".book-cover img", ".novel-img img",
+                "img[src*='cover']", "img"
+            ]
+            cover_image_url = None
+
+            for selector in image_selectors:
+                image_els = page.locator(selector)
+                count = await image_els.count()
+
+                for i in range(count):
+                    src = await image_els.nth(i).get_attribute("src")
+                    if src and "logo" not in src.lower():
+                        cover_image_url = urljoin(toc_url, src)
+                        print(f"[INFO] Cover image found: {cover_image_url}")
+                        break
+
+                if cover_image_url:
+                    break
+
             # === Scrape chapter links across all pagination pages ===
+            visited_urls = []
+
             while True:
+                if (page.url in visited_urls):
+                    print("[INFO] Already visited this ToC page. Stopping pagination.")
+                    break
+                visited_urls.append(page.url)
+
                 container = page.locator(CHAPTER_LINK_CONTAINER_SELECTOR)
                 if await container.count() == 0:
                     container = page
@@ -133,5 +163,6 @@ async def extract_toc_info(toc_url: str) -> dict:
 
     return {
         "title": novel_title,
-        "chapter_urls": sorted_urls
+        "chapter_urls": sorted_urls,
+        "cover_image_url": cover_image_url
     }
