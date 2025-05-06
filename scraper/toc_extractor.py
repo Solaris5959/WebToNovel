@@ -6,7 +6,6 @@ Handles pagination, preview sections, and ensures correct chapter order.
 import re
 from typing import Optional
 from urllib.parse import urljoin
-
 from playwright.async_api import async_playwright, Error, Locator
 
 CHAPTER_LINK_CONTAINER_SELECTOR = ".chapter-list, .toc, .chapters, .list-chapters"

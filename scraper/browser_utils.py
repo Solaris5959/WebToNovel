@@ -1,3 +1,7 @@
+"""
+This module contains utility functions for creating and managing browser contexts
+"""
+
 from playwright.async_api import Browser, BrowserContext
 
 DEFAULT_USER_AGENT = (

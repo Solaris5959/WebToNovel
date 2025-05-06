@@ -5,9 +5,9 @@ and the scraping of individual chapters using different methods.
 """
 import asyncio
 import json
-import re
 from pathlib import Path
 from typing import Dict
+from scraper.utils import slugify
 from scraper.toc_extractor import extract_toc_info
 from scraper.iframe_scraper import scrape_iframe_chapter
 from scraper.paragraph_scraper import scrape_paragraph_chapter
@@ -17,15 +17,6 @@ SCRAPER_MAP = {
     "iframe": scrape_iframe_chapter,
     "paragraph": scrape_paragraph_chapter,
 }
-
-def slugify(text: str) -> str:
-    """
-    Creates a safe folder name from a string.
-    """
-    text = text.lower()
-    text = re.sub(r"[^\w\s-]", "", text)
-    text = re.sub(r"[\s_-]+", "-", text).strip("-")
-    return text
 
 def get_existing_chapter_urls(chapters_dir: Path) -> set:
     """

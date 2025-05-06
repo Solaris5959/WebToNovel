@@ -2,18 +2,9 @@
 This module contains the function to convert a structured novel directory into an EPUB file.
 """
 import json
-import re
 from pathlib import Path
 from ebooklib import epub
-
-def slugify(text: str) -> str:
-    """
-    Creates a filesystem-safe slug from the novel title.
-    """
-    text = text.lower()
-    text = re.sub(r"[^\w\s-]", "", text)
-    text = re.sub(r"[\s_-]+", "-", text).strip("-")
-    return text
+from scraper.utils import slugify
 
 def generate_epub(novel_dir: Path) -> Path:
     metadata_path = novel_dir / "metadata.json"

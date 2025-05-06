@@ -6,7 +6,7 @@ Returns a dictionary with the title and content.
 from playwright.async_api import async_playwright
 from playwright_stealth import stealth_async
 from scraper.browser_utils import create_stealth_context
-from scraper.extract_chapter_title import extract_chapter_title
+from scraper.utils import extract_chapter_title
 
 async def scrape_paragraph_chapter(url: str) -> dict:
     """
