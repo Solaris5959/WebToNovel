@@ -4,16 +4,14 @@ Handles pagination, preview sections, and ensures correct chapter order.
 """
 
 import re
-from typing import List, Optional
+from typing import Optional
 from urllib.parse import urljoin
 
 from playwright.async_api import async_playwright, Error, Locator
 
-
 CHAPTER_LINK_CONTAINER_SELECTOR = ".chapter-list, .toc, .chapters, .list-chapters"
 CHAPTER_LINK_SELECTOR = "a[href*='chapter'], a[href*='chap'], a[href*='ep']"
 PAGINATION_CONTAINER_SELECTOR = "nav.pagination, ul.pagination, div.pagination, .pagination"
-
 
 def is_valid_chapter_link(href: str) -> bool:
     """Heuristic to exclude preview/latest/etc. links."""
@@ -57,18 +55,23 @@ async def find_next_pagination_button(page) -> Optional[Locator]:
 
     return None
 
-async def extract_all_chapter_urls(toc_url: str) -> List[str]:
+async def extract_toc_info(toc_url: str) -> dict:
     """
-    Scrapes all chapter URLs from a table of contents page.
-    Supports paginated ToC pages and sorts chapters in ascending order.
+    Scrapes a novel's table of contents page for:
+      - Title of the novel
+      - All chapter URLs (ordered)
 
     Args:
         toc_url (str): URL to the table of contents.
 
     Returns:
-        List[str]: Ordered list of chapter URLs (first chapter to latest).
+        dict: {
+            "title": str,
+            "chapter_urls": List[str]
+        }
     """
     chapter_urls = []
+    novel_title = "Unknown Novel"
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -78,11 +81,53 @@ async def extract_all_chapter_urls(toc_url: str) -> List[str]:
         try:
             await page.goto(toc_url, timeout=15000)
 
+            # === Attempt to extract novel title ===
+            # Priority 1: Header elements
+            for selector in [".title", "h1", "h2", "h3", ".novel-title", ".entry-title"]:
+                el = page.locator(selector)
+                if await el.count() > 0:
+                    text = await el.first.text_content()
+                    print(text)
+                    if text and len(text.strip()) > 5:
+                        novel_title = text.strip().split(" | ")[0].split(" - ")[0]
+                        break
+
+            print(f"[INFO] Novel title detected: '{novel_title}'")
+
+            # === Attempt to get Novel Cover Image ===
+                        # === Attempt to extract cover image ===
+            image_selectors = [
+                ".novel-cover img", ".cover img", ".book-cover img", ".novel-img img",
+                "img[src*='cover']", "img"
+            ]
+            cover_image_url = None
+
+            for selector in image_selectors:
+                image_els = page.locator(selector)
+                count = await image_els.count()
+
+                for i in range(count):
+                    src = await image_els.nth(i).get_attribute("src")
+                    if src and "logo" not in src.lower():
+                        cover_image_url = urljoin(toc_url, src)
+                        print(f"[INFO] Cover image found: {cover_image_url}")
+                        break
+
+                if cover_image_url:
+                    break
+
+            # === Scrape chapter links across all pagination pages ===
+            visited_urls = []
+
             while True:
-                # Scope scraping to main ToC containers if available
+                if (page.url in visited_urls):
+                    print("[INFO] Already visited this ToC page. Stopping pagination.")
+                    break
+                visited_urls.append(page.url)
+
                 container = page.locator(CHAPTER_LINK_CONTAINER_SELECTOR)
                 if await container.count() == 0:
-                    container = page  # fallback to full page
+                    container = page
 
                 links = await container.locator(CHAPTER_LINK_SELECTOR).all()
                 urls = []
@@ -96,7 +141,6 @@ async def extract_all_chapter_urls(toc_url: str) -> List[str]:
                 print(f"[INFO] Found {len(urls)} valid chapter links on this page.")
                 chapter_urls.extend(urls)
 
-                # Detect next pagination button
                 next_button = await find_next_pagination_button(page)
                 if not next_button:
                     print("[INFO] No next page button found. Pagination complete.")
@@ -112,9 +156,13 @@ async def extract_all_chapter_urls(toc_url: str) -> List[str]:
         finally:
             await browser.close()
 
-    # Deduplicate and sort
     unique_urls = list(dict.fromkeys(chapter_urls))
     sorted_urls = sorted(unique_urls, key=extract_numeric_hint)
 
     print(f"[INFO] Total unique, sorted chapter URLs: {len(sorted_urls)}")
-    return sorted_urls
+
+    return {
+        "title": novel_title,
+        "chapter_urls": sorted_urls,
+        "cover_image_url": cover_image_url
+    }
